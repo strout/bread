@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang=en-US>
+	<head>
+		<title>Untitled.txt - Bread</title>
+		<!--
+			About: Bread is a Browser-based editor (get it?).
+			It can load, save, and preview (as any MIME type) what it's editing.
+			I'm making it because I can't find a good mobile editor.
+		-->
+		<meta charset=utf-8>
+		<meta name=viewport content="width=device-width,user-scalable=no">
+		<script>
+		// It's easier to debug on untethered mobile browsers this way.
+		// I should remove it if I ever productionize this.
+		window.onerror = function (msg, src, line, col) {
+			alert(msg + ' @ ' + src + '(' + line + ',' + col + ')');
+		};
+		</script>
+		<style>
+		html, body {
+			width: 100vw;
+			height: 100vh;
+			margin: 0;
+			padding: 0;
+		}
+		body {
+			display: flex;
+			flex-direction: column;
+			height: 100vh;
+		}
+		.row {
+			display: flex;
+		}
+		.spacer {
+			flex: 1;
+		}
+		.scrollable {
+			white-space: nowrap;
+			overflow-x: scroll;
+		}
+		#edit {
+			flex: 1;
+			white-space: pre;
+		}
+		#menu-more {
+			display: none;
+		}
+		</style>
+	</head>
+	<body>
+		<textarea id=edit></textarea>
+		<div id=menu>
+			<div class=row>
+				<button id=cmd-preview type=button>Preview</button>
+				<button id=cmd-save type=button>Save</button>
+				<button id=cmd-load type=button>Load</button>
+				<button id=cmd-more type=menu>More</button>
+				<div class=spacer></div>
+				<div class=scrollable>
+					<span id=name>Untitled.txt</span>
+					<span>:</span>
+					<span id=mime>text/plain</span>
+				</div>
+			</div>
+			<div id=menu-more class=row>
+				<button id=cmd-rename type=button>Rename</button>
+				<button id=cmd-mime type=button>Set MIME</button>
+			</div>
+		</div>
+		<script>
+		(function () {
+			'use strict';
+
+			function on(event, selectorOrElement, handler) {
+				const element = typeof selectorOrElement === 'string'
+					? document.querySelector(selectorOrElement)
+					: selectorOrElement;
+				element['on' + event] = handler;
+			}
+
+			function getBlob() {
+				const src = document.querySelector('#edit').value;
+				const mime = document.querySelector('#mime').textContent;
+				return new Blob([src], { type: mime });
+			}
+
+			function getName() {
+				return document.querySelector('#name').textContent;
+			}
+
+			function setName(newName) {
+				document.querySelector('#name').textContent = newName;
+				document.title = newName + ' - Bread';
+			}
+
+			function getMime() {
+				return document.querySelector('#mime').textContent;
+			}
+
+			function setMime(newMime) {
+				document.querySelector('#mime').textContent = newMime;
+			}
+
+			on('click', '#cmd-preview', function () {
+				const data = getBlob();
+				const url = URL.createObjectURL(data);
+				const preview = window.open(url, 'Preview');
+				on('beforeunload', preview, function () {
+					// clean up the object URL when the preview window closes.
+					URL.revokeObjectURL(url);
+				});
+			});
+
+			function createDownloadLink(url, fileName) {
+				const link = document.createElement('a');
+				link.href = url;
+				link.download = fileName;
+				return link;
+			}
+
+			on('click', '#cmd-save', function () {
+				const url = URL.createObjectURL(getBlob());
+				const name = getName();
+				const link = createDownloadLink(url, name);
+				on('click', link, function () {
+					// clean up the object URL after the save happens.
+					setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+				});
+				// .click() doesn't seem to work here (tested on Firefox)
+				link.dispatchEvent(new MouseEvent('click'));
+			});
+
+			on('click', '#cmd-load', function () {
+				const input = document.createElement('input');
+				input.type = 'file';
+				on('change', input, function () {
+					if (!this.files.length) return;
+					const file = this.files[0];
+					const reader = new FileReader();
+					on('loadend', reader, function () {
+						document.querySelector('#edit').value = this.result;
+						setName(file.name);
+						setMime(file.type);
+					});
+					reader.readAsText(file);
+				});
+				input.click();
+			});
+
+			on('click', '#cmd-rename', function () {
+				const oldName = getName();
+				const newName = prompt('Choose a name:', oldName);
+				if (newName && newName !== oldName) {
+					setName(newName);
+				}
+			});
+
+			on('click', '#cmd-mime', function () {
+				const oldMime = getMime();
+				const newMime = prompt('Choose a MIME type:', oldMime);
+				if (newMime && newMime !== oldMime) {
+					setMime(newMime);
+				}
+			});
+
+			on('click', '#cmd-more', function () {
+				const s = document.querySelector('#menu-more').style;
+				s.display = s.display == 'flex' ? 'none' : 'flex';
+			});
+		})();
+		</script>
+	</body>
+</html>
