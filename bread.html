@@ -80,7 +80,7 @@
 
 			function getBlob() {
 				const src = document.querySelector('#edit').value;
-				const mime = document.querySelector('#mime').textContent;
+				const mime = getMime();
 				return new Blob([src], { type: mime });
 			}
 
